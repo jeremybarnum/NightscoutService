@@ -171,3 +171,49 @@ extension NightscoutClient {
 
 }
 
+extension NightscoutClient { // Added extension wrapper based on user's context
+    /// Uploads a custom Loop warning note treatment to Nightscout using the standard 'Note' event type.
+    ///
+    /// This function constructs a `NightscoutTreatment` object with the specified
+    /// message and date, using the `.note` event type. The message is prefixed
+    /// to allow identification within Nightscout. It uploads the treatment
+    /// to the /api/v1/treatments endpoint via the generic `upload` method.
+    ///
+    /// - Parameters:
+    ///   - message: The core text content of the warning note (e.g., "Slow Absorption. Ratio: 85%").
+    ///   - date: The timestamp when the warning occurred.
+    ///   - completion: A closure called upon completion of the upload attempt, returning Result<[String], Error>.
+    ///                 The [String] contains the object IDs assigned by Nightscout on success.
+    func uploadWarningTreatment(message: String, date: Date, completion: @escaping (Result<[String], Error>) -> Void) {
+        // Example logging using print
+        print("Attempting to upload warning treatment as a Note: \(message)")
+
+        // 1. Create the treatment object using the standard .note type
+        let treatment = NightscoutTreatment(
+            timestamp: date,
+            enteredBy: "Loop", // Identify the source
+            // Prepend a clear identifier to the notes field
+            notes: "LOOP_WARNING: \(message)",
+            eventType: .note // Use the existing .note type
+            // syncIdentifier: nil // Set if needed
+        )
+
+        // 2. Use the existing generic upload method with trailing closure syntax
+        // 'self' refers to the NightscoutClient instance.
+        self.upload([treatment]) { result in // Closure is now outside the parentheses, label omitted
+            // Log the result using print
+            switch result {
+            case .success(let ids):
+                 // Use print for logging success
+                 print("Successfully uploaded warning treatment (as Note). IDs: \(ids.joined(separator: ", "))")
+            case .failure(let error):
+                 // Use print for logging failure
+                 print("Failed to upload warning treatment (as Note): \(error)")
+            }
+            // Pass the result back to the caller
+            completion(result)
+        } // End of trailing closure
+    }
+} // Added closing brace for extension
+
+
