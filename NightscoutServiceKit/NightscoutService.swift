@@ -71,6 +71,18 @@ public final class NightscoutService: Service {
         self.otpManager = OTPManager(secretStore: KeychainManager())
         self.commandSourceV1 = RemoteCommandSourceV1(otpManager: otpManager)
         self.commandSourceV1.delegate = self
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: removing observer for testWarning in  "
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTestWarning(_:)), // Now this selector is valid
+            name: .testWarning,
+            object: nil
+        )
+        
     }
 
     public required init?(rawState: RawStateValue) {
@@ -89,6 +101,17 @@ public final class NightscoutService: Service {
         self.commandSourceV1.delegate = self
         
         restoreCredentials()
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: Adding observer for testWarning in required public init (os_log)"
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTestWarning(_:)), // Now this selector is valid
+            name: .testWarning,
+            object: nil
+        )
     }
 
     public var rawState: RawStateValue {
@@ -148,6 +171,20 @@ public final class NightscoutService: Service {
         siteURL = nil
         apiSecret = nil
         try? KeychainManager().setNightscoutCredentials()
+    }
+    
+    @objc private func handleTestWarning(_ notification: Notification) {
+        // For now, just log that the notification was received
+        print("**NightscoutService: Received .testWarning notification!")
+    }
+
+    deinit {
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: Adding observer for testWarning in required public init (os_log)"
+        )
+        NotificationCenter.default.removeObserver(self, name: .testWarning, object: nil)
     }
     
 }
