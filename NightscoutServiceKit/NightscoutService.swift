@@ -174,8 +174,54 @@ public final class NightscoutService: Service {
     }
     
     @objc private func handleTestWarning(_ notification: Notification) {
-        // For now, just log that the notification was received
+        // log that the notification was received
         print("**NightscoutService: Received .testWarning notification!")
+        guard let uploader = self.uploader else {
+               // Log error if uploader isn't available (likely due to missing credentials/URL)
+               os_log(.error, log: self.log, "Uploader not available. Cannot upload test warning.")
+               return // Stop execution if we can't upload
+           }
+        // 2. Define the dummy data for the carb entry
+        let dummyCarbAmount: Double = 29.0 // Using 99g as the unique identifier
+        let eventTimestamp = Date()        // Use the time the notification was received/handled
+        let sourceIdentifier = "LoopTestWarning" // Custom identifier for 'enteredBy' field
+        let warningNote = "Automated Test Warning Triggered" // Note for context
+        
+        // 3. Construct the dummy "Carb Correction" treatment object
+        // This uses the specific subclass CarbCorrectionNightscoutTreatment if available
+        // and assumes its initializer takes these parameters.
+        let dummyTreatment = CarbCorrectionNightscoutTreatment(
+            timestamp: eventTimestamp,
+            enteredBy: sourceIdentifier,
+            id: nil,// Helps identify this in Nightscout data
+            carbs: Int(dummyCarbAmount),
+            absorptionTime: nil, // Default absorption time, or can be nil (e.g., 180)
+            notes: warningNote,  // Add context in the notes field
+            syncIdentifier: UUID().uuidString // Provide a unique ID for NS database
+        )
+        
+        os_log(.info, log: self.log, "Attempting to upload dummy carb entry (%.1f g) for test warning...", dummyCarbAmount)
+        
+        // 4. Call the uploader's generic upload function with the single treatment
+            // We pass the dummy treatment inside an array: [dummyTreatment]
+            uploader.upload([dummyTreatment]) { result in
+                // This completion block runs asynchronously after the upload attempt finishes
+                DispatchQueue.main.async { // Dispatch logging back to main thread (good practice)
+                    switch result {
+                    case .success(let objectIds):
+                        // Successfully uploaded to Nightscout
+                        if let firstId = objectIds.first {
+                            os_log(.default, log: self.log, "Successfully uploaded dummy warning. Nightscout Object ID: %{public}@", firstId)
+                        } else {
+                            os_log(.default, log: self.log, "Successfully uploaded dummy warning (no ID returned).")
+                        }
+                    case .failure(let error):
+                        // Failed to upload
+                        os_log(.error, log: self.log, "Failed to upload dummy warning: %{public}@", error.localizedDescription)
+                    }
+                }
+            }
+
     }
 
     deinit {
