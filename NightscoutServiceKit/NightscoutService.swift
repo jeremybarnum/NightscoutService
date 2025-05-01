@@ -6,6 +6,7 @@
 //  Copyright © 2019 LoopKit Authors. All rights reserved.
 //
 
+import Foundation
 import os.log
 import HealthKit
 import LoopKit
@@ -71,7 +72,18 @@ public final class NightscoutService: Service {
         self.otpManager = OTPManager(secretStore: KeychainManager())
         self.commandSourceV1 = RemoteCommandSourceV1(otpManager: otpManager)
         self.commandSourceV1.delegate = self
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTestWarningUploadRequest(_:)), // Refers to the @objc func below
+            name: .didRequestTestWarningUpload, // Use the defined name
+            object: nil // Listen from any source
+        )
     }
+    
+    deinit {
+          NotificationCenter.default.removeObserver(self, name: .didRequestTestWarningUpload, object: nil)
+          // Remove any other observers added here if necessary
+      }
 
     public required init?(rawState: RawStateValue) {
         self.isOnboarded = rawState["isOnboarded"] as? Bool ?? true   // Backwards compatibility
@@ -148,6 +160,52 @@ public final class NightscoutService: Service {
         siteURL = nil
         apiSecret = nil
         try? KeychainManager().setNightscoutCredentials()
+    }
+    
+    // --- Add this handler function ---
+    /// Handles the notification requesting a test warning upload.
+    // Needs @objc to potentially be exposed to Objective-C runtime for the selector
+    @objc private func handleTestWarningUploadRequest(_ notification: Notification) {
+        log.default("Received request via notification to upload test warning note.")
+
+        // Ensure the uploader is available and configured
+        guard let uploader = self.uploader else {
+            log.error("Cannot upload test warning: Nightscout uploader unavailable or not configured.")
+            // Post completion notification with error
+            NotificationCenter.default.post(
+                name: .didCompleteTestWarningUpload,
+                object: self, // Sender is this NightscoutService instance
+                userInfo: ["error": NightscoutServiceError.missingCredentials] // Use an appropriate error type
+            )
+            return
+        }
+
+        // Prepare the test data
+        let testMessage = "Notification Trigger Test - Slow Absorption Warning - \(DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium))"
+        let testDate = Date()
+
+        log.info("Initiating test warning upload via NightscoutClient...")
+
+        // Call the upload function (defined in NightscoutClient extension - Step 1 of overall plan)
+        // Assumes 'uploadWarningTreatment' exists on 'uploader'
+        uploader.uploadWarningTreatment(message: testMessage, date: testDate) { result in
+            // Post a completion notification with the result in userInfo
+            var userInfo: [String: Any]? = nil
+            switch result {
+            case .success(let ids):
+                userInfo = ["ids": ids] // Pass back the Nightscout object IDs
+                self.log.info("Test warning upload successful via notification.")
+            case .failure(let error):
+                userInfo = ["error": error] // Pass back the error
+                self.log.error("Test warning upload failed via notification:")
+            }
+            // Post the completion notification regardless of success/failure
+            NotificationCenter.default.post(
+                name: .didCompleteTestWarningUpload,
+                object: self, // Sender is this NightscoutService instance
+                userInfo: userInfo
+            )
+        }
     }
     
 }
@@ -493,3 +551,5 @@ extension KeychainManager {
 }
 
 fileprivate let NightscoutAPIAccount = "NightscoutAPI"
+
+
