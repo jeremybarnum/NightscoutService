@@ -182,7 +182,7 @@ public final class NightscoutService: Service {
                return // Stop execution if we can't upload
            }
         // 2. Define the dummy data for the carb entry
-        let dummyCarbAmount: Double = 29.0 // Using 99g as the unique identifier
+        //let dummyCarbAmount: Double = 29.0 // Using 99g as the unique identifier
         let eventTimestamp = Date()        // Use the time the notification was received/handled
         let sourceIdentifier = "LoopTestWarning" // Custom identifier for 'enteredBy' field
         let warningNote = "Automated Test Warning Triggered" // Note for context
@@ -190,21 +190,23 @@ public final class NightscoutService: Service {
         // 3. Construct the dummy "Carb Correction" treatment object
         // This uses the specific subclass CarbCorrectionNightscoutTreatment if available
         // and assumes its initializer takes these parameters.
-        let dummyTreatment = CarbCorrectionNightscoutTreatment(
+        let noteTreatment = NightscoutTreatment(
             timestamp: eventTimestamp,
             enteredBy: sourceIdentifier,
+            notes: warningNote,
             id: nil,// Helps identify this in Nightscout data
-            carbs: Int(dummyCarbAmount),
-            absorptionTime: nil, // Default absorption time, or can be nil (e.g., 180)
-            notes: warningNote,  // Add context in the notes field
+            //carbs: Int(dummyCarbAmount),
+            //absorptionTime: nil, // Default absorption time, or can be nil (e.g., 180)
+            eventType: .note,
+             // Add context in the notes field
             syncIdentifier: UUID().uuidString // Provide a unique ID for NS database
         )
         
-        os_log(.info, log: self.log, "Attempting to upload dummy carb entry (%.1f g) for test warning...", dummyCarbAmount)
+        os_log(.info, log: self.log, "Attempting to upload dummy carb entry (%.1f g) for test warning...")
         
         // 4. Call the uploader's generic upload function with the single treatment
             // We pass the dummy treatment inside an array: [dummyTreatment]
-            uploader.upload([dummyTreatment]) { result in
+            uploader.upload([noteTreatment]) { result in
                 // This completion block runs asynchronously after the upload attempt finishes
                 DispatchQueue.main.async { // Dispatch logging back to main thread (good practice)
                     switch result {
