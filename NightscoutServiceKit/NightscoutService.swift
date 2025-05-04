@@ -175,34 +175,41 @@ public final class NightscoutService: Service {
     @objc private func handleTestWarning(_ notification: Notification) {
         // log that the notification was received
         print("**NightscoutService: Received .testWarning notification!")
+        // *** NEW: Extract data from the notification's userInfo dictionary ***
+        // Use 'guard let' and optional casting 'as?' to safely get the data
+        guard let userInfo = notification.userInfo, // Check if userInfo exists
+              let receivedMessage = userInfo["messagePayload"] as? String, // Extract String using the key
+              let receivedTimestamp = userInfo["messageTime"] as? Date // Extract Date using the key
+        else {
+            // Log an error if the expected data isn't found or isn't the correct type
+            os_log(.error, log: self.log, "**Received testWarning notification, but userInfo payload was missing or incorrect.")
+            // Optionally, you could upload a generic error note here, or just return
+            return
+        }
+
+        // Log the extracted data (optional but helpful for debugging)
+        os_log(.info, log: self.log, "**Extracted payload - Message: '%{public}s', Timestamp: %{public}@", receivedMessage, receivedTimestamp as NSDate)
         guard let uploader = self.uploader else {
                // Log error if uploader isn't available (likely due to missing credentials/URL)
-               os_log(.error, log: self.log, "Uploader not available. Cannot upload test warning.")
+               os_log(.error, log: self.log, "**Uploader not available. Cannot upload slowAbsorption warning.")
                return // Stop execution if we can't upload
            }
-        // 2. Define the dummy data for the carb entry
-        //let dummyCarbAmount: Double = 29.0 // Using 99g as the unique identifier
-        let eventTimestamp = Date()        // Use the time the notification was received/handled
+    
+        let eventTimestamp = receivedTimestamp       // Use the time the notification was received/handled
         let sourceIdentifier = "LoopTestWarning" // Custom identifier for 'enteredBy' field
-        let warningNote = "Automated Test Warning Triggered" // Note for context
-        
-        // 3. Construct the dummy "Carb Correction" treatment object
-        // This uses the specific subclass CarbCorrectionNightscoutTreatment if available
-        // and assumes its initializer takes these parameters.
+        let warningNote = receivedMessage// Note for context
         let noteTreatment = NightscoutTreatment(
             timestamp: eventTimestamp,
             enteredBy: sourceIdentifier,
             notes: warningNote,
             id: nil,// Helps identify this in Nightscout data
             eventType: .note,
-             // Add context in the notes field
             syncIdentifier: UUID().uuidString // Provide a unique ID for NS database
         )
         
-        os_log(.info, log: self.log, "Attempting to note warning for test warning...")
+        os_log(.info, log: self.log, "**Attempting to note warning for slowAbsorption warning...")
         
         // 4. Call the uploader's generic upload function with the single treatment
-            // We pass the dummy treatment inside an array: [dummyTreatment]
             uploader.upload([noteTreatment]) { result in
                 // This completion block runs asynchronously after the upload attempt finishes
                 DispatchQueue.main.async { // Dispatch logging back to main thread (good practice)
@@ -210,13 +217,13 @@ public final class NightscoutService: Service {
                     case .success(let objectIds):
                         // Successfully uploaded to Nightscout
                         if let firstId = objectIds.first {
-                            os_log(.default, log: self.log, "Successfully uploaded dummy warning. Nightscout Object ID: %{public}@", firstId)
+                            os_log(.default, log: self.log, "**Successfully uploaded slowAbsorption warning. Nightscout Object ID: %{public}@", firstId)
                         } else {
-                            os_log(.default, log: self.log, "Successfully uploaded dummy warning (no ID returned).")
+                            os_log(.default, log: self.log, "**Successfully uploaded slowAbsorption warning (no ID returned).")
                         }
                     case .failure(let error):
                         // Failed to upload
-                        os_log(.error, log: self.log, "Failed to upload dummy warning: %{public}@", error.localizedDescription)
+                        os_log(.error, log: self.log, "**Failed to upload dummy warning: %{public}@", error.localizedDescription)
                     }
                 }
             }
