@@ -74,8 +74,7 @@ public final class NightscoutService: Service {
         os_log(
             .default, // Log level ( .default, .info, .debug, .error, .fault )
             log: self.log, // Use the existing log object from the class
-            "**NightscoutService: removing observer for testWarning in  "
-        )
+            "**NightscoutService: adding observer for testWarning")
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleTestWarning(_:)), // Now this selector is valid
@@ -195,14 +194,12 @@ public final class NightscoutService: Service {
             enteredBy: sourceIdentifier,
             notes: warningNote,
             id: nil,// Helps identify this in Nightscout data
-            //carbs: Int(dummyCarbAmount),
-            //absorptionTime: nil, // Default absorption time, or can be nil (e.g., 180)
             eventType: .note,
              // Add context in the notes field
             syncIdentifier: UUID().uuidString // Provide a unique ID for NS database
         )
         
-        os_log(.info, log: self.log, "Attempting to upload dummy carb entry (%.1f g) for test warning...")
+        os_log(.info, log: self.log, "Attempting to note warning for test warning...")
         
         // 4. Call the uploader's generic upload function with the single treatment
             // We pass the dummy treatment inside an array: [dummyTreatment]
@@ -230,7 +227,7 @@ public final class NightscoutService: Service {
         os_log(
             .default, // Log level ( .default, .info, .debug, .error, .fault )
             log: self.log, // Use the existing log object from the class
-            "**NightscoutService: Adding observer for testWarning in required public init (os_log)"
+            "**NightscoutService: removing observer for testWarning in required public init (os_log)"
         )
         NotificationCenter.default.removeObserver(self, name: .testWarning, object: nil)
     }
