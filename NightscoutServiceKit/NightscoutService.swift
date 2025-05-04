@@ -74,11 +74,11 @@ public final class NightscoutService: Service {
         os_log(
             .default, // Log level ( .default, .info, .debug, .error, .fault )
             log: self.log, // Use the existing log object from the class
-            "**NightscoutService: adding observer for testWarning")
+            "**NightscoutService: adding observer for slowAbsorptionWarning")
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleTestWarning(_:)), // Now this selector is valid
-            name: .testWarning,
+            selector: #selector(handleSlowAbsorptionWarning(_:)), // Now this selector is valid
+            name: .slowAbsorptionWarning,
             object: nil
         )
         
@@ -103,12 +103,12 @@ public final class NightscoutService: Service {
         os_log(
             .default, // Log level ( .default, .info, .debug, .error, .fault )
             log: self.log, // Use the existing log object from the class
-            "**NightscoutService: Adding observer for testWarning in required public init (os_log)"
+            "**NightscoutService: Adding observer for slowAbsorptionWarning in required public init (os_log)"
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleTestWarning(_:)), // Now this selector is valid
-            name: .testWarning,
+            selector: #selector(handleSlowAbsorptionWarning(_:)), // Now this selector is valid
+            name: .slowAbsorptionWarning,
             object: nil
         )
     }
@@ -172,9 +172,9 @@ public final class NightscoutService: Service {
         try? KeychainManager().setNightscoutCredentials()
     }
     
-    @objc private func handleTestWarning(_ notification: Notification) {
+    @objc private func handleSlowAbsorptionWarning(_ notification: Notification) {
         // log that the notification was received
-        print("**NightscoutService: Received .testWarning notification!")
+        print("**NightscoutService: Received .slowAbsorptionWarning notification!")
         // *** NEW: Extract data from the notification's userInfo dictionary ***
         // Use 'guard let' and optional casting 'as?' to safely get the data
         guard let userInfo = notification.userInfo, // Check if userInfo exists
@@ -182,7 +182,7 @@ public final class NightscoutService: Service {
               let receivedTimestamp = userInfo["messageTime"] as? Date // Extract Date using the key
         else {
             // Log an error if the expected data isn't found or isn't the correct type
-            os_log(.error, log: self.log, "**Received testWarning notification, but userInfo payload was missing or incorrect.")
+            os_log(.error, log: self.log, "**Received slowAbsorptionWarning notification, but userInfo payload was missing or incorrect.")
             // Optionally, you could upload a generic error note here, or just return
             return
         }
@@ -196,7 +196,7 @@ public final class NightscoutService: Service {
            }
     
         let eventTimestamp = receivedTimestamp       // Use the time the notification was received/handled
-        let sourceIdentifier = "LoopTestWarning" // Custom identifier for 'enteredBy' field
+        let sourceIdentifier = "LoopSlowAbsorptionWarning" // Custom identifier for 'enteredBy' field
         let warningNote = receivedMessage// Note for context
         let noteTreatment = NightscoutTreatment(
             timestamp: eventTimestamp,
@@ -234,9 +234,9 @@ public final class NightscoutService: Service {
         os_log(
             .default, // Log level ( .default, .info, .debug, .error, .fault )
             log: self.log, // Use the existing log object from the class
-            "**NightscoutService: removing observer for testWarning in required public init (os_log)"
+            "**NightscoutService: removing observer for slowAbsorptionWarning in required public init (os_log)"
         )
-        NotificationCenter.default.removeObserver(self, name: .testWarning, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .slowAbsorptionWarning, object: nil)
     }
     
 }
