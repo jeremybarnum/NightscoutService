@@ -223,7 +223,7 @@ public final class NightscoutService: Service {
                         }
                     case .failure(let error):
                         // Failed to upload
-                        os_log(.error, log: self.log, "**Failed to upload dummy warning: %{public}@", error.localizedDescription)
+                        os_log(.error, log: self.log, "**Failed to upload slowAbsorptionWarning: %{public}@", error.localizedDescription)
                     }
                 }
             }
