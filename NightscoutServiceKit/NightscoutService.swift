@@ -71,6 +71,17 @@ public final class NightscoutService: Service {
         self.otpManager = OTPManager(secretStore: KeychainManager())
         self.commandSourceV1 = RemoteCommandSourceV1(otpManager: otpManager)
         self.commandSourceV1.delegate = self
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: adding observer for lowBGWarning")
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLowBGWarning(_:)), // Now this selector is valid
+            name: .lowBGWarning,
+            object: nil
+        )
+        
     }
 
     public required init?(rawState: RawStateValue) {
@@ -89,6 +100,17 @@ public final class NightscoutService: Service {
         self.commandSourceV1.delegate = self
         
         restoreCredentials()
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: Adding observer for lowBGWarning in required public init (os_log)"
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLowBGWarning(_:)), // Now this selector is valid
+            name: .lowBGWarning,
+            object: nil
+        )
     }
 
     public var rawState: RawStateValue {
@@ -148,6 +170,74 @@ public final class NightscoutService: Service {
         siteURL = nil
         apiSecret = nil
         try? KeychainManager().setNightscoutCredentials()
+    }
+    
+        @objc private func handleLowBGWarning(_ notification: Notification) {
+            // log that the notification was received
+            print("**NightscoutService: Received .lowBGWarning notification!")
+            // *** NEW: Extract data from the notification's userInfo dictionary ***
+            // Use 'guard let' and optional casting 'as?' to safely get the data
+            guard let userInfo = notification.userInfo, // Check if userInfo exists
+                  let receivedMessage = userInfo["warningMessage"] as? String, // Extract String using the key
+                  let receivedTimestamp = userInfo["warningTimestamp"] as? Date // Extract Date using the key
+            else {
+                // Log an error if the expected data isn't found or isn't the correct type
+                os_log(.error, log: self.log, "**Received lowBGWarning notification, but userInfo payload was missing or incorrect.")
+                // Optionally, you could upload a generic error note here, or just return
+                return
+            }
+
+            // Log the extracted data (optional but helpful for debugging)
+            os_log(.info, log: self.log, "**Extracted payload - Message: '%{public}s', Timestamp: %{public}@", receivedMessage, receivedTimestamp as NSDate)
+            guard let uploader = self.uploader else {
+                   // Log error if uploader isn't available (likely due to missing credentials/URL)
+                   os_log(.error, log: self.log, "**Uploader not available. Cannot upload slowAbsorption warning.")
+                   return // Stop execution if we can't upload
+               }
+        
+            let eventTimestamp = receivedTimestamp       // Use the time the notification was received/handled
+            let sourceIdentifier = "LooplowBGWarning" // Custom identifier for 'enteredBy' field
+            let warningNote = receivedMessage// Note for context
+            let noteTreatment = NightscoutTreatment(
+
+                timestamp: eventTimestamp,
+                enteredBy: sourceIdentifier,
+                notes: warningNote,
+                id: nil,// Helps identify this in Nightscout data
+                eventType: .note,
+                syncIdentifier: UUID().uuidString // Provide a unique ID for NS database
+            )
+            
+            os_log(.info, log: self.log, "**Attempting to note warning for slowAbsorption warning...")
+            
+            // 4. Call the uploader's generic upload function with the single treatment
+                uploader.upload([noteTreatment]) { result in
+                    // This completion block runs asynchronously after the upload attempt finishes
+                    DispatchQueue.main.async { // Dispatch logging back to main thread (good practice)
+                        switch result {
+                        case .success(let objectIds):
+                            // Successfully uploaded to Nightscout
+                            if let firstId = objectIds.first {
+                                os_log(.default, log: self.log, "**Successfully uploaded slowAbsorption warning. Nightscout Object ID: %{public}@", firstId)
+                            } else {
+                                os_log(.default, log: self.log, "**Successfully uploaded slowAbsorption warning (no ID returned).")
+                            }
+                        case .failure(let error):
+                            // Failed to upload
+                            os_log(.error, log: self.log, "**Failed to upload lowBGWarning: %{public}@", error.localizedDescription)
+                        }
+                    }
+                }
+
+        }
+
+    deinit {
+        os_log(
+            .default, // Log level ( .default, .info, .debug, .error, .fault )
+            log: self.log, // Use the existing log object from the class
+            "**NightscoutService: removing observer for lowBGWarning in required public init (os_log)"
+        )
+        NotificationCenter.default.removeObserver(self, name: .lowBGWarning, object: nil)
     }
     
 }
