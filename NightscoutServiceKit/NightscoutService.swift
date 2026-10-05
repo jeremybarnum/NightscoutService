@@ -47,6 +47,9 @@ public final class NightscoutService: Service {
     
     public var isOnboarded: Bool
 
+    /// Built from another controller's export: credentials in memory only, never the keychain.
+    public internal(set) var isConfiguredByAnotherController = false
+
     public let otpManager: OTPManager
     
     /// Maps loop syncIdentifiers to Nightscout objectIds
