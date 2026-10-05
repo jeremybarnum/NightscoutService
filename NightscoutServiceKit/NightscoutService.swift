@@ -10,16 +10,6 @@ import os.log
 import LoopKit
 import NightscoutKit
 
-#if os(watchOS)
-import WatchKit
-
-// UIDevice does not exist on watchOS. The uploader names itself "loop://<device name>"
-// and reports battery via UIDevice.current; on the watch those come from WKInterfaceDevice.
-struct UIDevice {
-    static var current: WKInterfaceDevice { WKInterfaceDevice.current() }
-}
-#endif
-
 public enum NightscoutServiceError: Error {
     case incompatibleTherapySettings
     case missingCredentials
