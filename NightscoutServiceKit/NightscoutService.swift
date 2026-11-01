@@ -69,12 +69,16 @@ public final class NightscoutService: Service {
 
     private let log = OSLog(category: "NightscoutService")
 
+    /// Production build: Loop's predicted-low warning, posted as a note (see `observeLowBGWarnings`).
+    private var lowBGWarningObserver: NSObjectProtocol?
+
     public init() {
         self.isOnboarded = false
         self.lockedObjectIdCache = Locked(ObjectIdCache())
         self.otpManager = OTPManager(secretStore: KeychainManager())
         self.commandSourceV1 = RemoteCommandSourceV1(otpManager: otpManager)
         self.commandSourceV1.delegate = self
+        observeLowBGWarnings()
     }
 
     public required init?(rawState: RawStateValue) {
@@ -93,6 +97,26 @@ public final class NightscoutService: Service {
         self.commandSourceV1.delegate = self
         
         restoreCredentials()
+        observeLowBGWarnings()
+    }
+
+    /// Production build: each predicted-low warning Loop issues on the phone becomes a Nightscout note,
+    /// for caregivers. Loop posts "com.loopkit.Loop.lowBGWarning" with the note and its time.
+    private func observeLowBGWarnings() {
+        lowBGWarningObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("com.loopkit.Loop.lowBGWarning"), object: nil, queue: nil
+        ) { [weak self] notification in
+            guard let self, let uploader = self.uploader,
+                  let note = notification.userInfo?["warningMessage"] as? String,
+                  let date = notification.userInfo?["warningTimestamp"] as? Date else { return }
+            let treatment = NightscoutTreatment(timestamp: date, enteredBy: "LooplowBGWarning", notes: note,
+                                                eventType: .note, syncIdentifier: UUID().uuidString)
+            uploader.upload([treatment]) { result in
+                if case .failure(let error) = result {
+                    self.log.error("Low glucose warning note failed to upload: %{public}@", String(describing: error))
+                }
+            }
+        }
     }
 
     public var rawState: RawStateValue {
